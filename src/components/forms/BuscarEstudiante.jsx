@@ -9,7 +9,7 @@ import {
   ModalButtons,
   ModalButton,
   ModalLabel,
-} from "C:/Users/Fede/Desktop/Proyecto/registro-login/src/components/forms/ModalStyles";
+} from "./ModalStyles"; // Adjust the import path as necessary
 import "./BuscarEstudiante.css";
 
 const BuscarEstudiante = () => {
