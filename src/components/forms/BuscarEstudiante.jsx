@@ -9,7 +9,7 @@ import {
   ModalButtons,
   ModalButton,
   ModalLabel,
-} from "./ModalStyles";;
+} from "./ModalStyles"; // Adjust the import path as necessary
 import "./BuscarEstudiante.css";
 
 const BuscarEstudiante = () => {
