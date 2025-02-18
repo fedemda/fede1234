@@ -9,7 +9,7 @@ import {
   ModalButtons,
   ModalButton,
   ModalLabel,
-} from "C:/Users/Fede/Desktop/Proyecto/registro-login/src/components/forms/ModalStyles";
+} from "./ModalStyles";;
 import "./BuscarEstudiante.css";
 
 const BuscarEstudiante = () => {
