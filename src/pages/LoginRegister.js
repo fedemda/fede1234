@@ -40,7 +40,7 @@ function LoginRegister({ onLogin }) {
         // Guardar token y nombre del usuario en localStorage
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("userName", response.data.name);
-        // Mostrar mensaje de éxito
+        // Mostrar mensaje de éxito y notificar al padre
         MySwal.fire({
           title: "Éxito",
           text: response.data.message,
