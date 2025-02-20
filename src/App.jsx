@@ -1,15 +1,14 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LoginRegister from "./pages/LoginRegister";
 import Sidebar from "./components/dashboard/Sidebar";
 import "./axiosConfig";
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(null); // ⬅️ null para evitar renders innecesarios
   const [userName, setUserName] = useState("");
 
-  // 🔹 Función para verificar sesión
-  const checkSession = useCallback(() => {
+  useEffect(() => {
     console.log("🔍 Verificando estado de sesión...");
 
     const token = sessionStorage.getItem("token");
@@ -19,22 +18,14 @@ function App() {
     console.log("👤 Usuario en sessionStorage:", storedName);
 
     if (token && storedName) {
-      console.log("✅ Sesión detectada, verificando si hay cambios...");
-      
-      setIsLoggedIn((prevState) => prevState !== true ? true : prevState);
-      setUserName((prevName) => prevName !== storedName ? storedName : prevName);
+      console.log("✅ Sesión activa, estableciendo estado...");
+      setIsLoggedIn(true);
+      setUserName(storedName);
     } else {
       console.warn("⚠️ No hay sesión activa.");
-      
-      setIsLoggedIn((prevState) => prevState !== false ? false : prevState);
-      setUserName("");
+      setIsLoggedIn(false);
     }
   }, []);
-
-  // 🔹 useEffect para verificar sesión solo una vez
-  useEffect(() => {
-    checkSession();
-  }, [checkSession]); // 🔹 Se ejecuta SOLO una vez al inicio
 
   const handleLogin = (name, token) => {
     console.log("✅ Iniciando sesión con usuario:", name);
@@ -46,10 +37,15 @@ function App() {
 
   const handleLogout = () => {
     console.log("🚪 Cerrando sesión...");
-    sessionStorage.clear();
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("userName");
     setUserName("");
     setIsLoggedIn(false);
   };
+
+  if (isLoggedIn === null) {
+    return <h1 style={{ textAlign: "center", marginTop: "20%" }}>Cargando...</h1>;
+  }
 
   return (
     <Router>
@@ -94,5 +90,3 @@ function App() {
 }
 
 export default App;
-
-
