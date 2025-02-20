@@ -5,6 +5,9 @@ axios.interceptors.request.use(
     const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log("Token agregado a la solicitud:", token);
+    } else {
+      console.log("No hay token disponible en localStorage");
     }
     return config;
   },
