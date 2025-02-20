@@ -5,17 +5,16 @@ import Sidebar from "./components/dashboard/Sidebar";
 import "./axiosConfig";
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(null); // Inicialmente `null` para evitar el bucle
   const [userName, setUserName] = useState("");
 
-  // Verifica el estado de inicio de sesión al cargar la aplicación
   useEffect(() => {
+    console.log("🔍 Verificando estado de sesión...");
     const token = sessionStorage.getItem("token");
     const storedName = sessionStorage.getItem("userName");
 
-    console.log("🔍 Verificando sesión...");
-    console.log("Token en sessionStorage:", token);
-    console.log("Usuario en sessionStorage:", storedName);
+    console.log("📩 Token en sessionStorage:", token);
+    console.log("👤 Usuario en sessionStorage:", storedName);
 
     if (token && storedName) {
       setIsLoggedIn(true);
@@ -23,30 +22,11 @@ function App() {
     } else {
       setIsLoggedIn(false);
     }
-  }, []); // Se ejecuta solo una vez al montar el componente
+  }, []);
 
-  // Manejar inicio de sesión
-  const handleLogin = (name, token) => {
-    console.log("✅ Guardando sesión:", { name, token });
-
-    if (!token) {
-      console.error("⚠️ No se recibió un token válido. No se iniciará sesión.");
-      return;
-    }
-
-    sessionStorage.setItem("token", token);
-    sessionStorage.setItem("userName", name);
-
-    setUserName(name);
-    setIsLoggedIn(true);
-  };
-
-  // Manejar cierre de sesión
-  const handleLogout = () => {
-    console.log("❌ Cierre de sesión manual");
-    sessionStorage.clear();
-    setIsLoggedIn(false);
-  };
+  if (isLoggedIn === null) {
+    return <h1>Cargando...</h1>; // Evita redireccionar antes de comprobar el estado de sesión
+  }
 
   return (
     <Router>
@@ -54,11 +34,7 @@ function App() {
         <Route
           path="/"
           element={
-            !isLoggedIn ? (
-              <LoginRegister onLogin={handleLogin} />
-            ) : (
-              <Navigate to="/dashboard" />
-            )
+            !isLoggedIn ? <LoginRegister onLogin={handleLogin} /> : <Navigate to="/dashboard" />
           }
         />
         <Route
@@ -77,15 +53,7 @@ function App() {
                     padding: "20px",
                   }}
                 >
-                  <div
-                    style={{
-                      width: "95%",
-                      maxWidth: "1800px",
-                      textAlign: "center",
-                      position: "relative",
-                      top: "-28px",
-                    }}
-                  >
+                  <div style={{ width: "95%", maxWidth: "1800px", textAlign: "center", position: "relative", top: "-28px" }}>
                     <h1 style={{ fontSize: "3rem", fontWeight: "bold", marginTop: "0" }}>
                       Sistema de Gestión Institucional
                     </h1>
@@ -103,4 +71,5 @@ function App() {
 }
 
 export default App;
+
 
