@@ -10,27 +10,26 @@ function App() {
   const [userName, setUserName] = useState(""); // Estado para el nombre del usuario
 
   // Verifica el estado de inicio de sesión al cargar la aplicación
-  useEffect(() => {
-    const token = localStorage.getItem("token"); // Verifica si existe el token en localStorage
-    const storedName = localStorage.getItem("userName"); // Recupera el nombre guardado
-    if (token && storedName) {
-      setIsLoggedIn(true); // Mantiene la sesión activa
-      setUserName(storedName); // Restaura el nombre del usuario
-    }
-  }, []);
+ useEffect(() => {
+  const token = sessionStorage.getItem("token"); 
+  const storedName = sessionStorage.getItem("userName"); 
+  if (token && storedName) {
+    setIsLoggedIn(true);
+    setUserName(storedName);
+  }
+}, []);
 
-  // Manejar inicio de sesión
-  const handleLogin = (name) => {
-    localStorage.setItem("userName", name); // Guarda el nombre en localStorage
-    setUserName(name); // Actualiza el estado
-    setIsLoggedIn(true); // Marca como logueado
-  };
+const handleLogin = (name) => {
+  sessionStorage.setItem("userName", name);
+  setUserName(name);
+  setIsLoggedIn(true);
+};
 
-  // Manejar cierre de sesión
-  const handleLogout = () => {
-    localStorage.clear(); // Borra todos los datos guardados
-    setIsLoggedIn(false); // Cierra sesión
-  };
+const handleLogout = () => {
+  sessionStorage.clear();
+  setIsLoggedIn(false);
+};
+
 
   return (
     <Router>
