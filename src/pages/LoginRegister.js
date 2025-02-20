@@ -31,60 +31,58 @@ function LoginRegister({ onLogin }) {
   };
 
   // Manejar envío del formulario
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (showLogin) {
-        // Llamada para iniciar sesión
-        const response = await axios.post(`${API_URL}/login`, {
-          email: formData.email,
-          password: formData.password,
-        });
-
-        // Verificar si el token es válido
-        if (!response.data.token) {
-          throw new Error("No se recibió un token válido.");
-        }
-
-        // Guardar token y nombre del usuario en sessionStorage
-        sessionStorage.setItem("token", response.data.token);
-        sessionStorage.setItem("userName", response.data.name);
-
-        // Mostrar mensaje de éxito y notificar al padre
-        MySwal.fire({
-          title: "Éxito",
-          text: response.data.message,
-          icon: "success",
-        }).then(() => {
-          onLogin(response.data.name);
-        });
-
-      } else {
-        // Llamada para registrar usuario
-        const response = await axios.post(`${API_URL}/register`, {
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-        });
-
-        MySwal.fire({
-          title: "Éxito",
-          text: response.data.message,
-          icon: "success",
-        });
-
-        setFormData({ name: "", email: "", password: "" });
-        setShowLogin(true);
-      }
-    } catch (error) {
-      console.error("Error en autenticación:", error);
-      MySwal.fire({
-        title: "Error",
-        text: error.response?.data?.message || "Error en la solicitud. Por favor, intenta de nuevo.",
-        icon: "error",
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    if (showLogin) {
+      const response = await axios.post(`${API_URL}/login`, {
+        email: formData.email,
+        password: formData.password,
       });
+
+      console.log("🔑 Token recibido del backend:", response.data.token);
+
+      if (!response.data.token) {
+        throw new Error("Token inválido o no recibido");
+      }
+
+      sessionStorage.setItem("token", response.data.token);
+      sessionStorage.setItem("userName", response.data.name);
+
+      onLogin(response.data.name, response.data.token);
+
+      MySwal.fire({
+        title: "Éxito",
+        text: response.data.message,
+        icon: "success",
+      });
+
+    } else {
+      const response = await axios.post(`${API_URL}/register`, {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+
+      MySwal.fire({
+        title: "Éxito",
+        text: response.data.message,
+        icon: "success",
+      });
+
+      setFormData({ name: "", email: "", password: "" });
+      setShowLogin(true);
     }
-  };
+  } catch (error) {
+    console.error("⚠️ Error en autenticación:", error);
+    MySwal.fire({
+      title: "Error",
+      text: error.response?.data?.message || "Error en la solicitud. Por favor, intenta de nuevo.",
+      icon: "error",
+    });
+  }
+};
+
 
   return (
     <div className="form-container">
