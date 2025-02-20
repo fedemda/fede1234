@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LoginRegister from "./pages/LoginRegister";
 import Sidebar from "./components/dashboard/Sidebar";
+import "./axiosConfig";
+
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false); // Estado para verificar si está logueado
