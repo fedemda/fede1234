@@ -4,37 +4,53 @@ import LoginRegister from "./pages/LoginRegister";
 import Sidebar from "./components/dashboard/Sidebar";
 import "./axiosConfig";
 
-
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Estado para verificar si está logueado
-  const [userName, setUserName] = useState(""); // Estado para el nombre del usuario
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState("");
 
   // Verifica el estado de inicio de sesión al cargar la aplicación
- useEffect(() => {
-  const token = sessionStorage.getItem("token"); 
-  const storedName = sessionStorage.getItem("userName"); 
-  if (token && storedName) {
+  useEffect(() => {
+    const token = sessionStorage.getItem("token");
+    const storedName = sessionStorage.getItem("userName");
+
+    console.log("🔍 Verificando sesión...");
+    console.log("Token en sessionStorage:", token);
+    console.log("Usuario en sessionStorage:", storedName);
+
+    if (token && storedName) {
+      setIsLoggedIn(true);
+      setUserName(storedName);
+    } else {
+      setIsLoggedIn(false);
+    }
+  }, []); // Se ejecuta solo una vez al montar el componente
+
+  // Manejar inicio de sesión
+  const handleLogin = (name, token) => {
+    console.log("✅ Guardando sesión:", { name, token });
+
+    if (!token) {
+      console.error("⚠️ No se recibió un token válido. No se iniciará sesión.");
+      return;
+    }
+
+    sessionStorage.setItem("token", token);
+    sessionStorage.setItem("userName", name);
+
+    setUserName(name);
     setIsLoggedIn(true);
-    setUserName(storedName);
-  }
-}, []);
+  };
 
-const handleLogin = (name) => {
-  sessionStorage.setItem("userName", name);
-  setUserName(name);
-  setIsLoggedIn(true);
-};
-
-const handleLogout = () => {
-  sessionStorage.clear();
-  setIsLoggedIn(false);
-};
-
+  // Manejar cierre de sesión
+  const handleLogout = () => {
+    console.log("❌ Cierre de sesión manual");
+    sessionStorage.clear();
+    setIsLoggedIn(false);
+  };
 
   return (
     <Router>
       <Routes>
-        {/* Ruta para Login/Registro */}
         <Route
           path="/"
           element={
@@ -45,22 +61,12 @@ const handleLogout = () => {
             )
           }
         />
-        {/* Ruta para el Dashboard */}
         <Route
           path="/dashboard"
           element={
             isLoggedIn ? (
-              <div
-                style={{
-                  display: "flex",
-                  height: "100vh",
-                  width: "66.11vw",
-                }}
-              >
-                {/* Sidebar */}
+              <div style={{ display: "flex", height: "100vh", width: "66.11vw" }}>
                 <Sidebar userName={userName} onLogout={handleLogout} />
-
-                {/* Contenedor principal */}
                 <div
                   style={{
                     flex: 1,
@@ -80,13 +86,7 @@ const handleLogout = () => {
                       top: "-28px",
                     }}
                   >
-                    <h1
-                      style={{
-                        fontSize: "3rem",
-                        fontWeight: "bold",
-                        marginTop: "0",
-                      }}
-                    >
+                    <h1 style={{ fontSize: "3rem", fontWeight: "bold", marginTop: "0" }}>
                       Sistema de Gestión Institucional
                     </h1>
                   </div>
@@ -103,3 +103,4 @@ const handleLogout = () => {
 }
 
 export default App;
+
