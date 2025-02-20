@@ -5,9 +5,10 @@ import Sidebar from "./components/dashboard/Sidebar";
 import "./axiosConfig";
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(null); // Inicialmente `null` para evitar el bucle
+  const [isLoggedIn, setIsLoggedIn] = useState(null); // Evita bucles infinitos
   const [userName, setUserName] = useState("");
 
+  // Verificar sesión al cargar la página
   useEffect(() => {
     console.log("🔍 Verificando estado de sesión...");
     const token = sessionStorage.getItem("token");
@@ -24,8 +25,25 @@ function App() {
     }
   }, []);
 
+  // Manejar inicio de sesión
+  const handleLogin = (name, token) => {
+    console.log("✅ Iniciando sesión con usuario:", name);
+    sessionStorage.setItem("token", token);
+    sessionStorage.setItem("userName", name);
+    setUserName(name);
+    setIsLoggedIn(true);
+  };
+
+  // Manejar cierre de sesión
+  const handleLogout = () => {
+    console.log("🚪 Cerrando sesión...");
+    sessionStorage.clear();
+    setIsLoggedIn(false);
+  };
+
+  // Evitar renderizado mientras se carga la sesión
   if (isLoggedIn === null) {
-    return <h1>Cargando...</h1>; // Evita redireccionar antes de comprobar el estado de sesión
+    return <h1 style={{ textAlign: "center", marginTop: "20%" }}>Cargando...</h1>;
   }
 
   return (
