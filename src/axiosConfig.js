@@ -1,14 +1,15 @@
-import axios from "axios";
+axios.interceptors.request.use(
+  (config) => {
+    const token = sessionStorage.getItem("token");
 
-axios.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 401 && error.response.data?.message === "Token expirado, inicie sesión nuevamente") {
-      console.warn("⚠️ Token expirado, cerrando sesión...");
-      sessionStorage.clear();
-      window.location.href = "/";
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log("📩 Token enviado con la solicitud:", token);
+    } else {
+      console.log("❌ No hay token disponible en sessionStorage");
     }
-    return Promise.reject(error);
-  }
-);
 
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
