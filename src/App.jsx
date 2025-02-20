@@ -1,20 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LoginRegister from "./pages/LoginRegister";
 import Sidebar from "./components/dashboard/Sidebar";
 import "./axiosConfig";
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(null); 
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState("");
-  const hasCheckedSession = useRef(false); // ⬅️ Control para evitar múltiples ejecuciones
 
   useEffect(() => {
-    if (hasCheckedSession.current) return; // ⬅️ Si ya se ejecutó, no volver a hacerlo
-    hasCheckedSession.current = true;
-
     console.log("🔍 Verificando estado de sesión...");
-    
+
     const token = sessionStorage.getItem("token");
     const storedName = sessionStorage.getItem("userName");
 
@@ -22,14 +18,39 @@ function App() {
     console.log("👤 Usuario en sessionStorage:", storedName);
 
     if (token && storedName) {
-      console.log("✅ Sesión detectada, estableciendo estado...");
-      setIsLoggedIn(true);
-      setUserName(storedName);
+      console.log("✅ Sesión detectada, verificando si el estado debe cambiar...");
+      
+      // ⬇️ SOLO ACTUALIZAR SI HAY UN CAMBIO
+      setIsLoggedIn((prevState) => {
+        if (prevState !== true) {
+          console.log("🔄 Estableciendo sesión como activa.");
+          return true;
+        }
+        return prevState;
+      });
+
+      setUserName((prevName) => {
+        if (prevName !== storedName) {
+          console.log("🆕 Actualizando nombre de usuario.");
+          return storedName;
+        }
+        return prevName;
+      });
+
     } else {
       console.warn("⚠️ No hay sesión activa.");
-      setIsLoggedIn(false);
+      
+      setIsLoggedIn((prevState) => {
+        if (prevState !== false) {
+          console.log("🔄 Cerrando sesión.");
+          return false;
+        }
+        return prevState;
+      });
+
+      setUserName(""); 
     }
-  }, []); // ⬅️ useEffect sin dependencias, solo se ejecutará una vez
+  }, []); // 🔹 useEffect se ejecuta SOLO UNA VEZ al inicio.
 
   const handleLogin = (name, token) => {
     console.log("✅ Iniciando sesión con usuario:", name);
@@ -43,11 +64,8 @@ function App() {
     console.log("🚪 Cerrando sesión...");
     sessionStorage.clear();
     setIsLoggedIn(false);
+    setUserName("");
   };
-
-  if (isLoggedIn === null) {
-    return <h1 style={{ textAlign: "center", marginTop: "20%" }}>Cargando...</h1>;
-  }
 
   return (
     <Router>
@@ -92,7 +110,4 @@ function App() {
 }
 
 export default App;
-
-
-
 
