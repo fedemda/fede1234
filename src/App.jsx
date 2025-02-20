@@ -1,14 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LoginRegister from "./pages/LoginRegister";
 import Sidebar from "./components/dashboard/Sidebar";
 import "./axiosConfig";
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(null); // Inicialmente `null` para evitar el bucle
+  const [isLoggedIn, setIsLoggedIn] = useState(null); 
   const [userName, setUserName] = useState("");
+  const hasCheckedSession = useRef(false); // ⬅️ Control para evitar múltiples ejecuciones
 
   useEffect(() => {
+    if (hasCheckedSession.current) return; // ⬅️ Si ya se ejecutó, no volver a hacerlo
+    hasCheckedSession.current = true;
+
     console.log("🔍 Verificando estado de sesión...");
     
     const token = sessionStorage.getItem("token");
@@ -17,18 +21,16 @@ function App() {
     console.log("📩 Token en sessionStorage:", token);
     console.log("👤 Usuario en sessionStorage:", storedName);
 
-    // 🔹 Evitar actualizar el estado si ya es el correcto
-    if (token && storedName && isLoggedIn !== true) {
+    if (token && storedName) {
       console.log("✅ Sesión detectada, estableciendo estado...");
       setIsLoggedIn(true);
       setUserName(storedName);
-    } else if (!token && isLoggedIn !== false) {
-      console.warn("⚠️ No hay sesión, cerrando sesión...");
+    } else {
+      console.warn("⚠️ No hay sesión activa.");
       setIsLoggedIn(false);
     }
-  }, [isLoggedIn]); // 🔹 Dependencia para evitar bucles infinitos
+  }, []); // ⬅️ useEffect sin dependencias, solo se ejecutará una vez
 
-  // Manejar inicio de sesión
   const handleLogin = (name, token) => {
     console.log("✅ Iniciando sesión con usuario:", name);
     sessionStorage.setItem("token", token);
@@ -37,14 +39,12 @@ function App() {
     setIsLoggedIn(true);
   };
 
-  // Manejar cierre de sesión
   const handleLogout = () => {
     console.log("🚪 Cerrando sesión...");
     sessionStorage.clear();
     setIsLoggedIn(false);
   };
 
-  // Evitar renderizado mientras se carga la sesión
   if (isLoggedIn === null) {
     return <h1 style={{ textAlign: "center", marginTop: "20%" }}>Cargando...</h1>;
   }
@@ -92,6 +92,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
