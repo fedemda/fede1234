@@ -7,11 +7,11 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const mysql = require("mysql2");
-const util = require("util");
 const path = require("path");
 const fs = require("fs");
 const XlsxPopulate = require("xlsx-populate");
+
+const { Client } = require("pg");
 
 const app = express();
 
@@ -25,42 +25,50 @@ const SECRET_KEY = "mi_clave_secreta";
 app.use(bodyParser.json());
 app.use(cors());
 
-// Conexión a MySQL usando variables de entorno
-const db = mysql.createConnection({
-  host: process.env.DB_HOST || "dpg-cupt41a3esus738iik5g-a.oregon-postgres.render.com",          // Por ejemplo, en Render: db_host.render.com
+// Conexión a PostgreSQL
+const db = new Client({
+  host: process.env.DB_HOST || "dpg-cupt41a3esus738iik5g-a.oregon-postgres.render.com",
   user: process.env.DB_USER || "registro_usuarios_4059_user",
   password: process.env.DB_PASS || "P2Yoeom9EtZMBKjPKs4eJTfnV8vWPKj8",
-  database: process.env.DB_DATABASE || "registro_usuarios",
-  connectTimeout: 10000  // Aumenta el tiempo de espera a 10 segundos, por ejemplo
+  database: process.env.DB_DATABASE || "registro_usuarios_4059",
+  port: 5432,
+  connectionTimeoutMillis: 10000,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
-// Promisify query function for async/await use
-db.query = util.promisify(db.query);
 
-// Conexión a la base de datos
-db.connect((err) => {
+db.connect(err => {
   if (err) {
-    console.error("Error conectando a la base de datos:", err);
+    console.error("Error conectando a la base de datos PostgreSQL:", err);
     process.exit();
   }
-  console.log("Conectado a la base de datos MySQL");
+  console.log("Conectado a la base de datos PostgreSQL");
 });
 
 // Middleware para verificar el token de autenticación
 const verifyToken = (req, res, next) => {
-  const token = req.headers["authorization"];
+  let token = req.headers["authorization"];
   if (!token) {
+    console.log("No se recibió token en la solicitud");
     return res.status(403).json({ message: "Token requerido" });
   }
+  if (token.startsWith("Bearer ")) {
+    token = token.slice(7);
+  }
   try {
-    // Suponemos que el token se envía como "Bearer <token>"
-    const decoded = jwt.verify(token.split(" ")[1], SECRET_KEY);
+    const decoded = jwt.verify(token, SECRET_KEY);
+    console.log("Token decodificado correctamente:", decoded);
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(401).json({ message: "Token inválido" });
+    console.log("Error al verificar token:", error);
+    return res.status(401).json({ message: "Token inválido" });
   }
 };
+
+
 
 // Ruta para registrar usuarios
 app.post("/register", async (req, res) => {
@@ -73,39 +81,39 @@ app.post("/register", async (req, res) => {
   // Convertir la primera letra del nombre en mayúscula
   name = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 
-  db.query("SELECT * FROM users WHERE email = ?", [email], async (err, results) => {
-    if (err) return res.status(500).json({ message: "Error en el servidor" });
-    if (results.length > 0) {
+  try {
+    const userResult = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (userResult.rows.length > 0) {
       return res.status(400).json({ message: "El usuario ya está registrado" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    db.query(
-      "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-      [name, email, hashedPassword],
-      (err) => {
-        if (err) return res.status(500).json({ message: "Error registrando el usuario" });
-        res.status(201).json({ message: "Usuario registrado con éxito" });
-      }
+    await db.query(
+      "INSERT INTO users (name, email, password) VALUES ($1, $2, $3)",
+      [name, email, hashedPassword]
     );
-  });
+    res.status(201).json({ message: "Usuario registrado con éxito" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
 });
 
 // Ruta para iniciar sesión
-app.post("/login", (req, res) => {
+app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ message: "Todos los campos son obligatorios" });
   }
 
-  db.query("SELECT * FROM users WHERE email = ?", [email], async (err, results) => {
-    if (err) return res.status(500).json({ message: "Error en el servidor" });
-    if (results.length === 0) {
+  try {
+    const userResult = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (userResult.rows.length === 0) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
-    const user = results[0];
+    const user = userResult.rows[0];
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Contraseña incorrecta" });
@@ -115,74 +123,77 @@ app.post("/login", (req, res) => {
       expiresIn: "1h",
     });
     res.status(200).json({ message: "Inicio de sesión exitoso", token, name: user.name });
-  });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
 });
 
 // Ruta protegida para obtener el nombre del usuario
-app.post("/getUserName", verifyToken, (req, res) => {
+app.post("/getUserName", verifyToken, async (req, res) => {
   const email = req.user.email; // Obtenemos el email del token
 
-  db.query("SELECT name FROM users WHERE email = ?", [email], (err, results) => {
-    if (err) return res.status(500).json({ message: "Error del servidor" });
-    if (results.length > 0) {
-      res.json({ name: results[0].name });
+  try {
+    const result = await db.query("SELECT name FROM users WHERE email = $1", [email]);
+    if (result.rows.length > 0) {
+      res.json({ name: result.rows[0].name });
     } else {
       res.status(404).json({ message: "Usuario no encontrado" });
     }
-  });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error del servidor" });
+  }
 });
 
 // Ruta para agregar una nueva carrera
-app.post("/carreras", verifyToken, (req, res) => {
+app.post("/carreras", verifyToken, async (req, res) => {
   const { categoria, subcategoria, resolucion, cohorte, duracion, horas } = req.body;
 
-  // Validaciones
   if (!categoria || !subcategoria || !resolucion || !cohorte || !duracion || !horas) {
     return res.status(400).json({ message: "Todos los campos son obligatorios" });
   }
 
-  const checkSql = "SELECT * FROM carreras WHERE resolucion = ? AND cohorte = ?";
-  db.query(checkSql, [resolucion, cohorte], (err, results) => {
-    if (err) {
-      return res.status(500).json({ message: "Error en el servidor" });
-    }
-    if (results.length > 0) {
+  try {
+    const checkResult = await db.query(
+      "SELECT * FROM carreras WHERE resolucion = $1 AND cohorte = $2",
+      [resolucion, cohorte]
+    );
+    if (checkResult.rows.length > 0) {
       return res.status(400).json({ message: "La carrera ya está cargada" });
     }
 
-    const insertSql =
-      "INSERT INTO carreras (categoria, subcategoria, resolucion, cohorte, duracion, carga_horaria) VALUES (?, ?, ?, ?, ?, ?)";
-    db.query(
-      insertSql,
-      [categoria, subcategoria, resolucion, cohorte, duracion, horas],
-      (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Error en el servidor" });
-        }
-        return res.status(201).json({ message: "Carrera guardada correctamente" });
-      }
+    await db.query(
+      "INSERT INTO carreras (categoria, subcategoria, resolucion, cohorte, duracion, carga_horaria) VALUES ($1, $2, $3, $4, $5, $6)",
+      [categoria, subcategoria, resolucion, cohorte, duracion, horas]
     );
-  });
+    return res.status(201).json({ message: "Carrera guardada correctamente" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error en el servidor" });
+  }
 });
 
 // Ruta para buscar carreras
-app.get("/carreras", verifyToken, (req, res) => {
+app.get("/carreras", verifyToken, async (req, res) => {
   const busqueda = req.query.busqueda || "";
 
-  const sql = `
-    SELECT id, subcategoria, resolucion, cohorte, duracion, carga_horaria 
-    FROM carreras
-    WHERE subcategoria LIKE ? OR resolucion LIKE ?`; // Incluyendo 'id'
-  db.query(sql, [`%${busqueda}%`, `%${busqueda}%`], (err, results) => {
-    if (err) {
-      return res.status(500).json({ message: "Error en el servidor" });
-    }
-    res.json(results || []);
-  });
+  try {
+    const sql = `
+      SELECT id, subcategoria, resolucion, cohorte, duracion, carga_horaria 
+      FROM carreras
+      WHERE subcategoria ILIKE $1 OR resolucion ILIKE $1
+    `;
+    const result = await db.query(sql, [`%${busqueda}%`]);
+    res.json(result.rows || []);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
 });
 
 // Ruta para actualizar carreras
-app.put("/carreras/:id", verifyToken, (req, res) => {
+app.put("/carreras/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
   const { subcategoria, resolucion, cohorte, duracion, carga_horaria } = req.body;
 
@@ -190,48 +201,44 @@ app.put("/carreras/:id", verifyToken, (req, res) => {
     return res.status(400).json({ message: "ID no definido." });
   }
 
-  const sql =
-    "UPDATE carreras SET subcategoria = ?, resolucion = ?, cohorte = ?, duracion = ?, carga_horaria = ? WHERE id = ?";
-  db.query(sql, [subcategoria, resolucion, cohorte, duracion, carga_horaria, id], (err) => {
-    if (err) {
-      return res.status(500).json({ message: "Error en el servidor" });
-    }
+  try {
+    await db.query(
+      "UPDATE carreras SET subcategoria = $1, resolucion = $2, cohorte = $3, duracion = $4, carga_horaria = $5 WHERE id = $6",
+      [subcategoria, resolucion, cohorte, duracion, carga_horaria, id]
+    );
     res.json({ message: "Carrera actualizada correctamente" });
-  });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
 });
 
 // Ruta para eliminar carreras
-app.delete("/carreras/:id", verifyToken, (req, res) => {
+app.delete("/carreras/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
 
   if (!id) {
     return res.status(400).json({ message: "ID no definido." });
   }
 
-  const sql = "DELETE FROM carreras WHERE id = ?";
-  db.query(sql, [id], (err) => {
-    if (err) {
-      return res.status(500).json({ message: "Error en el servidor" });
-    }
+  try {
+    await db.query("DELETE FROM carreras WHERE id = $1", [id]);
     res.json({ message: "Carrera eliminada correctamente" });
-  });
-});
-
-// Iniciar el servidor
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
 });
 
 // Ruta para obtener todas las subcategorías (carreras)
-app.get("/carreras", (req, res) => {
-  const sql = "SELECT id, subcategoria FROM carreras";
-
-  db.query(sql, (err, results) => {
-    if (err) {
-      return res.status(500).json({ message: "Error en el servidor" });
-    }
-    res.json(results); // Devuelve las subcategorías
-  });
+app.get("/carreras/subcategorias", async (req, res) => {
+  try {
+    const result = await db.query("SELECT id, subcategoria FROM carreras");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
 });
 
 // Ruta para agregar una nueva materia
@@ -239,7 +246,6 @@ app.post("/materias", verifyToken, async (req, res) => {
   try {
     let { carrera, nombre_materia, anio } = req.body;
 
-    // Validar que los campos no estén vacíos
     if (!carrera || !nombre_materia || !anio) {
       return res.status(400).json({ message: "Todos los campos son obligatorios" });
     }
@@ -256,11 +262,9 @@ app.post("/materias", verifyToken, async (req, res) => {
         .join(" ");
     };
 
-    // Aplicar formato antes de guardar
     nombre_materia = capitalizeWords(nombre_materia);
 
-    // Insertar la materia en la base de datos
-    const sql = "INSERT INTO materias (carrera, nombre_materia, anio) VALUES (?, ?, ?)";
+    const sql = "INSERT INTO materias (carrera, nombre_materia, anio) VALUES ($1, $2, $3)";
     await db.query(sql, [carrera, nombre_materia, anio]);
 
     res.status(201).json({ message: "Materia guardada correctamente" });
@@ -270,22 +274,23 @@ app.post("/materias", verifyToken, async (req, res) => {
   }
 });
 
-// Ruta para buscar materias
-app.get("/materias", verifyToken, (req, res) => {
+// Ruta para buscar materias (búsqueda general)
+app.get("/materias", verifyToken, async (req, res) => {
   const busqueda = req.query.busqueda || "";
 
-  const sql = `
-    SELECT id, nombre_materia, carrera, anio 
-    FROM materias
-    WHERE nombre_materia LIKE ? OR carrera LIKE ? OR anio LIKE ?
-    ORDER BY nombre_materia ASC, carrera ASC, anio ASC`;
-
-  db.query(sql, [`%${busqueda}%`, `%${busqueda}%`, `%${busqueda}%`], (err, results) => {
-    if (err) {
-      return res.status(500).json({ message: "Error en el servidor" });
-    }
-    res.json(results || []);
-  });
+  try {
+    const sql = `
+      SELECT id, nombre_materia, carrera, anio 
+      FROM materias
+      WHERE nombre_materia ILIKE $1 OR carrera ILIKE $1 OR CAST(anio AS TEXT) ILIKE $1
+      ORDER BY nombre_materia ASC, carrera ASC, anio ASC
+    `;
+    const result = await db.query(sql, [`%${busqueda}%`]);
+    res.json(result.rows || []);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
 });
 
 // Ruta para actualizar materias
@@ -293,7 +298,7 @@ app.put("/materias/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
   let { carrera, nombre_materia, anio } = req.body;
 
-  if (!id || !carrera || !nombre_materia) { // Eliminamos anio de la validación
+  if (!id || !carrera || !nombre_materia) {
     return res.status(400).json({ message: "Todos los campos son obligatorios." });
   }
 
@@ -309,13 +314,9 @@ app.put("/materias/:id", verifyToken, async (req, res) => {
       .join(" ");
   };
 
-  // Aplicar formato antes de guardar
   nombre_materia = capitalizeWords(nombre_materia);
 
-  const sql = `
-    UPDATE materias 
-    SET carrera = ?, nombre_materia = ?, anio = ?
-    WHERE id = ?`;
+  const sql = `UPDATE materias SET carrera = $1, nombre_materia = $2, anio = $3 WHERE id = $4`;
 
   try {
     await db.query(sql, [carrera, nombre_materia, anio, id]);
@@ -326,84 +327,69 @@ app.put("/materias/:id", verifyToken, async (req, res) => {
   }
 });
 
-
 // Ruta para eliminar materias
-app.delete("/materias/:id", verifyToken, (req, res) => {
+app.delete("/materias/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
 
   if (!id) {
     return res.status(400).json({ message: "ID no definido." });
   }
 
-  const sql = "DELETE FROM materias WHERE id = ?";
-  db.query(sql, [id], (err) => {
-    if (err) {
-      return res.status(500).json({ message: "Error en el servidor" });
-    }
+  try {
+    await db.query("DELETE FROM materias WHERE id = $1", [id]);
     res.json({ message: "Materia eliminada correctamente" });
-  });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
 });
 
-// Ruta duplicada para agregar una nueva materia (eliminada para evitar duplicaciones)
-
-
 // Ruta para obtener nombre y rol del usuario
-app.post("/getUserInfo", verifyToken, (req, res) => {
-  const email = req.user.email; // Obtener el email del token
+app.post("/getUserInfo", verifyToken, async (req, res) => {
+  const email = req.user.email;
 
-  const sql = `
-    SELECT name, rol_id 
-    FROM users 
-    WHERE email = ?
-  `;
-
-  db.query(sql, [email], (err, results) => {
-    if (err) {
-      return res.status(500).json({ message: "Error en el servidor" });
-    }
-    if (results.length > 0) {
+  try {
+    const result = await db.query("SELECT name, rol_id FROM users WHERE email = $1", [email]);
+    if (result.rows.length > 0) {
       res.json({
-        name: results[0].name,
-        rol_id: results[0].rol_id, // Devolver el rol_id
+        name: result.rows[0].name,
+        rol_id: result.rows[0].rol_id,
       });
     } else {
       res.status(404).json({ message: "Usuario no encontrado" });
     }
-  });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
 });
 
 // Ruta para agregar un nuevo estudiante
 app.post("/estudiantes", verifyToken, async (req, res) => {
   const { carrera, apellido_y_nombre, dni, fecha_de_nacimiento, telefono, email } = req.body;
 
-  // Validar que los campos requeridos no estén vacíos
   if (!carrera || !apellido_y_nombre || !dni || !fecha_de_nacimiento || !email) {
     return res.status(400).json({ message: "Todos los campos obligatorios deben completarse." });
   }
 
   try {
-    // Consulta para insertar el nuevo estudiante
     const insertSql = `
       INSERT INTO estudiantes (carrera, apellido_y_nombre, dni, fecha_de_nacimiento, telefono, email)
-      VALUES (?, ?, ?, ?, ?, ?)
+      VALUES ($1, $2, $3, $4, $5, $6)
     `;
     const values = [carrera, apellido_y_nombre, dni, fecha_de_nacimiento, telefono || null, email];
 
     await db.query(insertSql, values);
     res.status(201).json({ message: "Estudiante guardado exitosamente." });
   } catch (error) {
-
-    // Manejar el error de entrada duplicada
-    if (error.code === "ER_DUP_ENTRY") {
+    if (error.code === '23505') {
       return res.status(400).json({ message: "Error: DNI duplicado en la base de datos" });
     }
-
-    // Otros errores
     res.status(500).json({ message: "Ocurrió un error al guardar el estudiante." });
   }
-}); 
+});
 
-// Ruta para buscar estudiantes y dni duplicados
+// Ruta para buscar estudiantes y DNI duplicados
 app.get("/estudiantes", verifyToken, async (req, res) => {
   const busqueda = req.query.busqueda || "";
 
@@ -411,12 +397,10 @@ app.get("/estudiantes", verifyToken, async (req, res) => {
     const sql = `
       SELECT id, apellido_y_nombre AS nombre, dni, fecha_de_nacimiento AS fecha_nacimiento, telefono, email, carrera
       FROM estudiantes
-      WHERE apellido_y_nombre LIKE ? OR dni LIKE ?
-    
+      WHERE apellido_y_nombre ILIKE $1 OR dni ILIKE $1
     `;
-
-    const resultados = await db.query(sql, [`%${busqueda}%`, `%${busqueda}%`, `%${busqueda}%`, `%${busqueda}%`]);
-    res.json(resultados);
+    const resultados = await db.query(sql, [`%${busqueda}%`]);
+    res.json(resultados.rows);
   } catch (error) {
     console.error("Error al obtener estudiantes:", error);
     res.status(500).json({ message: "Error al obtener estudiantes" });
@@ -435,13 +419,8 @@ app.put("/estudiantes/:id", verifyToken, async (req, res) => {
   try {
     const sql = `
       UPDATE estudiantes 
-      SET 
-        apellido_y_nombre = ?, 
-        dni = ?, 
-        fecha_de_nacimiento = ?, 
-        telefono = ?, 
-        email = ?
-      WHERE id = ?
+      SET apellido_y_nombre = $1, dni = $2, fecha_de_nacimiento = $3, telefono = $4, email = $5
+      WHERE id = $6
     `;
     const values = [apellido_y_nombre, dni, fecha_de_nacimiento, telefono, email, id];
 
@@ -462,11 +441,9 @@ app.delete("/estudiantes/:id", verifyToken, async (req, res) => {
   }
 
   try {
-    const sql = "DELETE FROM estudiantes WHERE id = ?";
-    const result = await db.query(sql, [id]);
+    const result = await db.query("DELETE FROM estudiantes WHERE id = $1", [id]);
 
-    // Verificamos si alguna fila fue afectada
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ message: "No se encontró el registro a eliminar." });
     }
 
@@ -476,7 +453,6 @@ app.delete("/estudiantes/:id", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Error en el servidor" });
   }
 });
-
 
 // Ruta para validar DNI en edición de estudiantes
 app.get("/estudiantes/validar-dni", async (req, res) => {
@@ -488,13 +464,10 @@ app.get("/estudiantes/validar-dni", async (req, res) => {
 
   try {
     const numericId = Number(id) || 0;
-    const sql = "SELECT COUNT(*) AS count FROM estudiantes WHERE dni = ? AND id != ?";
-    
-    // Obtiene el resultado, que es un array de objetos
+    const sql = "SELECT COUNT(*) AS count FROM estudiantes WHERE dni = $1 AND id != $2";
     const result = await db.query(sql, [dni, numericId]);
 
-    // Accedemos al primer objeto del array para obtener la propiedad count
-    if (result[0].count > 0) {
+    if (parseInt(result.rows[0].count) > 0) {
       res.json({ duplicado: true });
     } else {
       res.json({ duplicado: false });
@@ -505,51 +478,40 @@ app.get("/estudiantes/validar-dni", async (req, res) => {
   }
 });
 
-
-
 // Ruta para buscar un estudiante por DNI
 app.get("/estudiantes/:dni", verifyToken, async (req, res) => {
   const { dni } = req.params;
 
   try {
-    // Consulta para buscar en la tabla `estudiantes`
     const estudiantesSql = `
       SELECT apellido_y_nombre AS nombre, carrera, 'estudiantes' AS tabla
       FROM estudiantes
-      WHERE dni = ?
+      WHERE dni = $1
     `;
 
-    // Consulta para buscar en la tabla `dni_duplicados`
     const duplicadosSql = `
       SELECT apellido_y_nombre AS nombre, carrera, 'dni_duplicados' AS tabla
       FROM dni_duplicados
-      WHERE dni = ?
+      WHERE dni = $1
     `;
 
-    // Ejecutar ambas consultas
     const [estudiantesResult, duplicadosResult] = await Promise.all([
       db.query(estudiantesSql, [dni]),
       db.query(duplicadosSql, [dni]),
     ]);
 
-    // Combinar los resultados de ambas tablas
-    const allResults = [...estudiantesResult, ...duplicadosResult];
+    const allResults = [...estudiantesResult.rows, ...duplicadosResult.rows];
 
     if (allResults.length === 0) {
       return res.status(404).json({ message: "Estudiante no encontrado en ninguna tabla" });
     }
 
-    // Buscar las resoluciones para cada carrera
     const resultadosConResoluciones = await Promise.all(
       allResults.map(async (registro) => {
-        const resolucionSql = `
-          SELECT resolucion
-          FROM carreras
-          WHERE subcategoria = ?
-        `;
+        const resolucionSql = `SELECT resolucion FROM carreras WHERE subcategoria = $1`;
         const resolucionResult = await db.query(resolucionSql, [registro.carrera]);
         const resolucion =
-          resolucionResult.length > 0 ? resolucionResult[0].resolucion : "No disponible";
+          resolucionResult.rows.length > 0 ? resolucionResult.rows[0].resolucion : "No disponible";
 
         return {
           ...registro,
@@ -558,7 +520,6 @@ app.get("/estudiantes/:dni", verifyToken, async (req, res) => {
       })
     );
 
-    // Devolver todos los registros con resoluciones
     res.json(resultadosConResoluciones);
   } catch (error) {
     console.error("Error al buscar estudiante:", error);
@@ -566,43 +527,38 @@ app.get("/estudiantes/:dni", verifyToken, async (req, res) => {
   }
 });
 
-// Agregar logs para depuración en la ruta de materias
-app.get("/materias", verifyToken, (req, res) => {
+// Ruta para filtrar materias por carrera y año (con logs)
+app.get("/materias/filtrar", verifyToken, async (req, res) => {
   let { carrera, anio } = req.query;
 
   console.log("📩 Parámetros recibidos en el backend:");
-  console.log("Carrera recibida en la API:", `"${carrera}"`);  // Verifica espacios
-  console.log("Año recibido en la API:", `"${anio}"`);  // Verifica tipo de dato
+  console.log("Carrera recibida en la API:", `"${carrera}"`);
+  console.log("Año recibido en la API:", `"${anio}"`);
 
   if (!carrera || !anio) {
     return res.status(400).json({ error: "Faltan parámetros carrera o año" });
   }
 
-  // Normaliza la carrera en el backend
   carrera = carrera.trim().toLowerCase();
 
-  const sql = `SELECT id, nombre_materia, carrera, anio 
-               FROM materias 
-               WHERE LOWER(TRIM(carrera)) = ? AND anio = ?`;
+  const sql = `SELECT id, nombre_materia, carrera, anio FROM materias WHERE LOWER(TRIM(carrera)) = $1 AND anio = $2`;
 
   console.log("🔍 Consulta SQL ejecutada:", sql);
-  console.log("🔍 Valores enviados a MySQL:", [carrera, anio]);
+  console.log("🔍 Valores enviados a PG:", [carrera, anio]);
 
-  db.query(sql, [carrera, anio], (err, result) => {
-    if (err) {
-      console.error("❌ Error en la consulta SQL:", err);
-      return res.status(500).json({ error: "Error en la consulta SQL" });
-    }
-
-    console.log("✅ Materias filtradas enviadas al frontend:", result);
-    res.json(result);
-  });
+  try {
+    const result = await db.query(sql, [carrera, anio]);
+    console.log("✅ Materias filtradas enviadas al frontend:", result.rows);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("❌ Error en la consulta SQL:", err);
+    res.status(500).json({ error: "Error en la consulta SQL" });
+  }
 });
 
-// Agrega esta función en server.js:
+// Función para convertir fecha
 function convertDate(dateStr) {
   if (!dateStr) return "";
-  // Si el string ya contiene "-" se asume que ya está en formato "YYYY-MM-DD"
   if (dateStr.indexOf("-") !== -1) return dateStr;
   const parts = dateStr.split("/");
   if (parts.length !== 3) return "";
@@ -619,9 +575,9 @@ app.get("/calificaciones", verifyToken, async (req, res) => {
   }
 
   try {
-    const sql = "SELECT * FROM calificaciones WHERE dni = ? AND materia = ?";
+    const sql = "SELECT * FROM calificaciones WHERE dni = $1 AND materia = $2";
     const results = await db.query(sql, [dni, materia]);
-    res.status(200).json(results);
+    res.status(200).json(results.rows);
   } catch (error) {
     console.error("Error al obtener calificaciones:", error);
     res.status(500).json({ message: "Error al obtener calificaciones" });
@@ -633,22 +589,20 @@ app.put("/calificaciones/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
   const { dni, ap_nombre, carrera, resolucion, materia, curso, l_f, fecha_aprobacion, numeros, letras } = req.body;
 
-  // Validar que los campos requeridos no estén vacíos
   if (!dni || !ap_nombre || !carrera || !materia || !curso) {
     return res.status(400).json({ message: "Faltan datos requeridos" });
   }
 
   try {
-     const sql = `
+    const sql = `
       UPDATE calificaciones 
-      SET dni = ?, ap_nombre = ?, carrera = ?, resolucion = ?, materia = ?, curso = ?, l_f = ?, fecha_aprobacion = ?, numeros = ?, letras = ?
-      WHERE id = ?
+      SET dni = $1, ap_nombre = $2, carrera = $3, resolucion = $4, materia = $5, curso = $6, l_f = $7, fecha_aprobacion = $8, numeros = $9, letras = $10
+      WHERE id = $11
     `;
     const values = [dni, ap_nombre, carrera, resolucion, materia, curso, l_f, fecha_aprobacion, numeros, letras, id];
     const result = await db.query(sql, values);
-    
-    // Verificamos si alguna fila fue afectada
-    if (result.affectedRows === 0) {
+
+    if (result.rowCount === 0) {
       return res.status(404).json({ message: "No se encontró registro para actualizar" });
     }
 
@@ -658,8 +612,7 @@ app.put("/calificaciones/:id", verifyToken, async (req, res) => {
   }
 });
 
-// NUEVO ENDPOINT: Generar Analítico Parcial con xlsx-populate
-// =====================================================
+// Endpoint GET para generar Analítico Parcial con xlsx-populate
 app.get("/generar-analitico", async (req, res) => {
   const { dni, apNombre, archivo, resolucion, carrera } = req.query;
   if (!dni || !apNombre || !archivo || !resolucion || !carrera) {
@@ -667,7 +620,7 @@ app.get("/generar-analitico", async (req, res) => {
       .status(400)
       .send("Se requieren los parámetros 'dni', 'apNombre', 'archivo', 'resolucion' y 'carrera'.");
   }
-  
+
   try {
     // Cargar la plantilla de Excel
     const templatePath = path.join(__dirname, "public", archivo);
@@ -695,7 +648,7 @@ app.get("/generar-analitico", async (req, res) => {
     const sql = `
       SELECT materia, l_f, fecha_aprobacion, numeros, letras 
       FROM calificaciones 
-      WHERE dni = ? AND resolucion = ? AND carrera = ?
+      WHERE dni = $1 AND resolucion = $2 AND carrera = $3
     `;
     const values = [dni, resolucion, carrera];
     const results = await db.query(sql, values);
@@ -716,11 +669,11 @@ app.get("/generar-analitico", async (req, res) => {
 
     let row = 12; // Se comienza en la fila 12
 
-    if (results && results.length > 0) {
+    if (results.rows && results.rows.length > 0) {
       // Recorrer las materias en el orden indicado
       for (const materia of materiasOrdenadas) {
         // Buscar el registro correspondiente (evitando duplicados)
-        const record = results.find(r => r.materia === materia);
+        const record = results.rows.find(r => r.materia === materia);
         if (record) {
           sheet.cell(`B${row}`).value(record.materia);
 
@@ -773,7 +726,6 @@ app.get("/generar-analitico", async (req, res) => {
     }
 
     // --- Insertar fecha generada ---
-    // Obtener el día, mes y año actuales
     const hoy = new Date();
     const day = hoy.getDate();
     const monthNames = [
@@ -783,7 +735,6 @@ app.get("/generar-analitico", async (req, res) => {
     const month = monthNames[hoy.getMonth()];
     const year = hoy.getFullYear();
 
-    // Si la carrera es de profesorado, insertar día en C76 y mes en F76; de lo contrario, en las celdas de tecnicatura
     if (carrera.toLowerCase().includes("prof")) {
       sheet.cell("C76").value(day);
       sheet.cell("F76").value(month);
@@ -795,12 +746,10 @@ app.get("/generar-analitico", async (req, res) => {
     }
     // --- Fin inserción de fecha ---
 
-    // Construir el nombre del archivo de salida:
     const apNombreSafe = apNombre.replace(/\s+/g, "_");
     const carreraSafe = carrera.replace(/\s+/g, "_");
     const nombreArchivo = `Analitico Parcial_${apNombreSafe}_${year}_${carreraSafe}.xlsx`;
 
-    // Generar y enviar el archivo Excel
     const buffer = await workbook.outputAsync();
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename=${nombreArchivo}`);
@@ -811,8 +760,44 @@ app.get("/generar-analitico", async (req, res) => {
   }
 });
 
+// Servir archivos estáticos desde la carpeta "public"
+app.use(express.static("public"));
 
+// Endpoint POST para insertar calificaciones
+app.post("/calificaciones", verifyToken, async (req, res) => {
+  try {
+    const {
+      dni,
+      ap_nombre,
+      carrera,
+      resolucion,
+      materia,
+      curso,
+      l_f,
+      fecha_aprobacion,
+      numeros,
+      letras,
+    } = req.body;
 
+    if (!dni || !ap_nombre || !carrera || !materia || !curso) {
+      return res.status(400).json({ message: "Faltan datos requeridos" });
+    }
 
+    const sql = `
+      INSERT INTO calificaciones 
+      (dni, ap_nombre, carrera, resolucion, materia, curso, l_f, fecha_aprobacion, numeros, letras)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING id
+    `;
+    const values = [dni, ap_nombre, carrera, resolucion, materia, curso, l_f, fecha_aprobacion, numeros, letras];
+    const result = await db.query(sql, values);
+    res.status(201).json({ message: "Registro creado exitosamente", id: result.rows[0].id });
+  } catch (error) {
+    res.status(500).json({ message: "Error al insertar calificación" });
+  }
+});
 
-
+// Iniciar el servidor
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+});
