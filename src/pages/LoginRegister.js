@@ -16,6 +16,9 @@ function LoginRegister({ onLogin }) {
   const [showLogin, setShowLogin] = useState(true);
   const [showToggleButton, setShowToggleButton] = useState(false);
 
+  // Verificar si la URL del backend está configurada correctamente
+  console.log("API_URL:", API_URL);
+
   // Alternar entre formularios de Login y Registro
   const toggleForm = () => {
     setShowLogin(!showLogin);
@@ -37,9 +40,16 @@ function LoginRegister({ onLogin }) {
           email: formData.email,
           password: formData.password,
         });
-        // Guardar token y nombre del usuario en localStorage
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("userName", response.data.name);
+
+        // Verificar si el token es válido
+        if (!response.data.token) {
+          throw new Error("No se recibió un token válido.");
+        }
+
+        // Guardar token y nombre del usuario en sessionStorage
+        sessionStorage.setItem("token", response.data.token);
+        sessionStorage.setItem("userName", response.data.name);
+
         // Mostrar mensaje de éxito y notificar al padre
         MySwal.fire({
           title: "Éxito",
@@ -48,6 +58,7 @@ function LoginRegister({ onLogin }) {
         }).then(() => {
           onLogin(response.data.name);
         });
+
       } else {
         // Llamada para registrar usuario
         const response = await axios.post(`${API_URL}/register`, {
@@ -55,15 +66,18 @@ function LoginRegister({ onLogin }) {
           email: formData.email,
           password: formData.password,
         });
+
         MySwal.fire({
           title: "Éxito",
           text: response.data.message,
           icon: "success",
         });
+
         setFormData({ name: "", email: "", password: "" });
         setShowLogin(true);
       }
     } catch (error) {
+      console.error("Error en autenticación:", error);
       MySwal.fire({
         title: "Error",
         text: error.response?.data?.message || "Error en la solicitud. Por favor, intenta de nuevo.",
@@ -116,3 +130,4 @@ function LoginRegister({ onLogin }) {
 }
 
 export default LoginRegister;
+
