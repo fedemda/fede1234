@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LoginRegister from "./pages/LoginRegister";
 import Sidebar from "./components/dashboard/Sidebar";
@@ -8,7 +8,8 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState("");
 
-  useEffect(() => {
+  // 🔹 Función para verificar sesión
+  const checkSession = useCallback(() => {
     console.log("🔍 Verificando estado de sesión...");
 
     const token = sessionStorage.getItem("token");
@@ -18,39 +19,22 @@ function App() {
     console.log("👤 Usuario en sessionStorage:", storedName);
 
     if (token && storedName) {
-      console.log("✅ Sesión detectada, verificando si el estado debe cambiar...");
+      console.log("✅ Sesión detectada, verificando si hay cambios...");
       
-      // ⬇️ SOLO ACTUALIZAR SI HAY UN CAMBIO
-      setIsLoggedIn((prevState) => {
-        if (prevState !== true) {
-          console.log("🔄 Estableciendo sesión como activa.");
-          return true;
-        }
-        return prevState;
-      });
-
-      setUserName((prevName) => {
-        if (prevName !== storedName) {
-          console.log("🆕 Actualizando nombre de usuario.");
-          return storedName;
-        }
-        return prevName;
-      });
-
+      setIsLoggedIn((prevState) => prevState !== true ? true : prevState);
+      setUserName((prevName) => prevName !== storedName ? storedName : prevName);
     } else {
       console.warn("⚠️ No hay sesión activa.");
       
-      setIsLoggedIn((prevState) => {
-        if (prevState !== false) {
-          console.log("🔄 Cerrando sesión.");
-          return false;
-        }
-        return prevState;
-      });
-
-      setUserName(""); 
+      setIsLoggedIn((prevState) => prevState !== false ? false : prevState);
+      setUserName("");
     }
-  }, []); // 🔹 useEffect se ejecuta SOLO UNA VEZ al inicio.
+  }, []);
+
+  // 🔹 useEffect para verificar sesión solo una vez
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]); // 🔹 Se ejecuta SOLO una vez al inicio
 
   const handleLogin = (name, token) => {
     console.log("✅ Iniciando sesión con usuario:", name);
@@ -63,8 +47,8 @@ function App() {
   const handleLogout = () => {
     console.log("🚪 Cerrando sesión...");
     sessionStorage.clear();
-    setIsLoggedIn(false);
     setUserName("");
+    setIsLoggedIn(false);
   };
 
   return (
@@ -110,4 +94,5 @@ function App() {
 }
 
 export default App;
+
 
