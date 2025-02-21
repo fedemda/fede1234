@@ -2,6 +2,12 @@ import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import "./NuevaMateria.css";
 
+// Definir la URL del backend según el entorno
+const API_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://fede456.onrender.com"
+    : "http://localhost:5000";
+
 const NuevaMateria = () => {
   const [nombre, setNombre] = useState("");
   const [carrera, setCarrera] = useState(""); 
@@ -9,21 +15,21 @@ const NuevaMateria = () => {
   const [anio, setAnio] = useState(""); 
   const [opcionesAnio, setOpcionesAnio] = useState([]); 
 
-    // Mapeo para mostrar "1º", "2º", etc.
-    const anioMap = {
-      "1": "1º",
-      "2": "2º",
-      "3": "3º",
-      "4": "4º",
-      "5": "5º",
-      "6": "6º",
-    };
+  // Mapeo para mostrar "1º", "2º", etc.
+  const anioMap = {
+    "1": "1º",
+    "2": "2º",
+    "3": "3º",
+    "4": "4º",
+    "5": "5º",
+    "6": "6º",
+  };
 
   useEffect(() => {
     const fetchCarreras = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch("http://localhost:5000/carreras", {
+        const response = await fetch(`${API_URL}/carreras`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -64,7 +70,6 @@ const NuevaMateria = () => {
     }
   };
   
-
   const handleNombreChange = (e) => {
     const value = e.target.value;
     if (/^[^0-9]*$/.test(value)) {
@@ -84,7 +89,7 @@ const NuevaMateria = () => {
   
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:5000/materias", {
+      const response = await fetch(`${API_URL}/materias`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
