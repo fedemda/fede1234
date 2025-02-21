@@ -43,33 +43,23 @@ const FormularioCarrera = ({ onClose = () => {} }) => {
   // Manejar envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log({ resolucion, cohorte, duracion, horas, categoria, subcategoria });
-
-    if (!resolucion || !cohorte || !duracion || !horas || !categoria || !subcategoria) {
+  
+    console.log("📩 Enviando solicitud para agregar carrera...");
+    console.log("🔑 Token en localStorage:", localStorage.getItem("token"));
+  
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("❌ Token no encontrado en localStorage.");
       MySwal.fire({
         title: "Error",
-        text: "Todos los campos son obligatorios.",
+        text: "Sesión expirada. Inicia sesión nuevamente.",
         icon: "error",
       });
       return;
     }
-
-    if (duracion <= 0 || horas <= 0) {
-      MySwal.fire({
-        title: "Error",
-        text: "La duración y carga horaria deben ser valores positivos.",
-        icon: "error",
-      });
-      return;
-    }
-
+  
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("Token no encontrado. Por favor, inicia sesión de nuevo.");
-      }
-
-      const response = await fetch(`${API_URL}/carreras`, {
+      const response = await fetch("https://fede456.onrender.com/carreras", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -84,33 +74,36 @@ const FormularioCarrera = ({ onClose = () => {} }) => {
           subcategoria,
         }),
       });
-
-      if (response.ok) {
-        MySwal.fire({
-          title: "Éxito",
-          text: "Carrera guardada correctamente.",
-          icon: "success",
-        });
-        resetForm();
-        if (typeof onClose === "function") {
-          onClose();
-        }
-      } else {
-        const data = await response.json();
+  
+      console.log("📩 Respuesta del servidor:", response);
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("❌ Error en la solicitud:", errorData);
         MySwal.fire({
           title: "Error",
-          text: data.message || "Ocurrió un error al guardar.",
+          text: errorData.message || "Ocurrió un error al guardar.",
           icon: "error",
         });
+        return;
       }
+  
+      MySwal.fire({
+        title: "Éxito",
+        text: "Carrera guardada correctamente.",
+        icon: "success",
+      });
+      resetForm();
     } catch (error) {
+      console.error("❌ Error en la conexión:", error);
       MySwal.fire({
         title: "Error",
-        text: error.message || "Error al conectar con el servidor.",
+        text: "Error al conectar con el servidor.",
         icon: "error",
       });
     }
   };
+  
 
   return (
     <div className="formulario-carrera-container">
