@@ -9,8 +9,14 @@ import {
   ModalButtons,
   ModalButton,
   ModalLabel,
-} from "./ModalStyles"; // Adjust the import path as necessary
+} from "./ModalStyles"; // Ajusta la ruta de importación según corresponda
 import "./BuscarEstudiante.css";
+
+// Definir la URL del backend según el entorno
+const API_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://fede456.onrender.com"
+    : "http://localhost:5000";
 
 const BuscarEstudiante = () => {
   const [busqueda, setBusqueda] = useState("");
@@ -39,7 +45,7 @@ const BuscarEstudiante = () => {
         setError(null);
         try {
           const response = await fetch(
-            `http://localhost:5000/estudiantes?busqueda=${query}`,
+            `${API_URL}/estudiantes?busqueda=${query}`,
             {
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -64,7 +70,7 @@ const BuscarEstudiante = () => {
     buscarDatos(busqueda);
   }, [busqueda, buscarDatos]);
 
-  // Función de validación con debounce (mantén debounce para no saturar el endpoint)
+  // Validación de DNI duplicado con debounce
   const validarDniDuplicadoEdicion = useCallback(
     debounce(async (dni, id) => {
       if (dni.trim() === "" || dni.length !== 8) {
@@ -73,7 +79,7 @@ const BuscarEstudiante = () => {
       }
       try {
         const response = await fetch(
-          `http://localhost:5000/estudiantes/validar-dni?dni=${dni}&id=${id}`,
+          `${API_URL}/estudiantes/validar-dni?dni=${dni}&id=${id}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -102,7 +108,6 @@ const BuscarEstudiante = () => {
     }));
   };
 
-  // useEffect para disparar la validación cuando cambie el DNI o el id
   useEffect(() => {
     if (filaSeleccionada && filaSeleccionada.dni && filaSeleccionada.id) {
       validarDniDuplicadoEdicion(filaSeleccionada.dni, filaSeleccionada.id);
@@ -159,7 +164,6 @@ const BuscarEstudiante = () => {
   const guardarCambios = async () => {
     let { nombre, dni, fecha_nacimiento, telefono, email, carrera } = filaSeleccionada;
 
-    // Validaciones generales
     if (!nombre || !dni || !fecha_nacimiento || !email || !carrera) {
       Swal.fire({
         icon: "error",
@@ -171,10 +175,7 @@ const BuscarEstudiante = () => {
 
     nombre = capitalizeWords(nombre);
 
-    // En lugar de mostrar un Sweet Alert para dniError, simplemente abortamos
-    if (dniError) {
-      return;
-    }
+    if (dniError) return;
     if (fechaError) {
       Swal.fire({
         icon: "error",
@@ -194,7 +195,7 @@ const BuscarEstudiante = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/estudiantes/${filaSeleccionada.id}`,
+        `${API_URL}/estudiantes/${filaSeleccionada.id}`,
         {
           method: "PUT",
           headers: {
@@ -248,7 +249,7 @@ const BuscarEstudiante = () => {
       });
 
       if (confirmacion.isConfirmed) {
-        const response = await fetch(`http://localhost:5000/estudiantes/${id}`, {
+        const response = await fetch(`${API_URL}/estudiantes/${id}`, {
           method: "DELETE",
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -350,7 +351,6 @@ const BuscarEstudiante = () => {
               />
               {dniError && <span className="modal-error-message">{dniError}</span>}
             </div>
-
             <ModalLabel>Fecha de Nacimiento:</ModalLabel>
             <div style={{ position: "relative" }}>
               <ModalInput
@@ -363,7 +363,6 @@ const BuscarEstudiante = () => {
               />
               {fechaError && <span className="modal-error-message">{fechaError}</span>}
             </div>
-
             <ModalLabel>Teléfono:</ModalLabel>
             <ModalInput
               type="text"
@@ -376,7 +375,6 @@ const BuscarEstudiante = () => {
                 }));
               }}
             />
-
             <ModalLabel>Email:</ModalLabel>
             <div style={{ position: "relative" }}>
               <ModalInput
@@ -387,7 +385,6 @@ const BuscarEstudiante = () => {
               />
               {emailError && <span className="modal-error-message">{emailError}</span>}
             </div>
-
             <ModalLabel>Carrera:</ModalLabel>
             <ModalInput type="text" value={filaSeleccionada.carrera} readOnly />
             <ModalButtons>
