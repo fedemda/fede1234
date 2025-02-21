@@ -7,7 +7,7 @@ import {
   ModalButtons,
   ModalButton,
   ModalLabel
-} from "./ModalStyles"; // Adjust the import path as necessary
+} from "./ModalStyles"; // Ajusta la ruta de importación según sea necesario
 import "./BuscarCarrera.css";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -15,12 +15,18 @@ import withReactContent from "sweetalert2-react-content";
 // Configurar SweetAlert2 para React
 const MySwal = withReactContent(Swal);
 
+// Definir la URL del backend según el entorno
+const API_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://fede456.onrender.com"
+    : "http://localhost:5000";
+
 const BuscarCarrera = () => {
   const [busqueda, setBusqueda] = useState("");
   const [resultados, setResultados] = useState([]);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [filaSeleccionada, setFilaSeleccionada] = useState(null);
-  const [userRole, setUserRole] = useState(localStorage.getItem("userRole")); 
+  const [userRole, setUserRole] = useState(localStorage.getItem("userRole"));
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
@@ -29,7 +35,7 @@ const BuscarCarrera = () => {
       if (busqueda.trim() !== "") {
         try {
           const response = await fetch(
-            `http://localhost:5000/carreras?busqueda=${busqueda}`,
+            `${API_URL}/carreras?busqueda=${busqueda}`,
             {
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -117,7 +123,7 @@ const BuscarCarrera = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/carreras/${filaSeleccionada.id}`,
+        `${API_URL}/carreras/${filaSeleccionada.id}`,
         {
           method: "PUT",
           headers: {
@@ -174,7 +180,7 @@ const BuscarCarrera = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const response = await fetch(`http://localhost:5000/carreras/${id}`, {
+          const response = await fetch(`${API_URL}/carreras/${id}`, {
             method: "DELETE",
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -250,15 +256,18 @@ const BuscarCarrera = () => {
               <tr>
                 <td colSpan={userRole !== "2" ? 6 : 5} className="pagination-row">
                   <div className="pagination-container">
-                    {Array.from({ length: Math.ceil(resultados.length / itemsPerPage) }, (_, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setCurrentPage(index + 1)}
-                        className={`pagination-btn ${currentPage === index + 1 ? "active" : ""}`}
-                      >
-                        {index + 1}
-                      </button>
-                    ))}
+                    {Array.from(
+                      { length: Math.ceil(resultados.length / itemsPerPage) },
+                      (_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentPage(index + 1)}
+                          className={`pagination-btn ${currentPage === index + 1 ? "active" : ""}`}
+                        >
+                          {index + 1}
+                        </button>
+                      )
+                    )}
                   </div>
                 </td>
               </tr>
@@ -284,7 +293,8 @@ const BuscarCarrera = () => {
               name="resolucion"
               value={filaSeleccionada.resolucion}
               onChange={(e) => {
-                if (handleResolucionChange(e.target.value) && e.target.value.trim() !== "") manejarCambio(e);
+                if (handleResolucionChange(e.target.value) && e.target.value.trim() !== "") 
+                  manejarCambio(e);
               }}
             />
             <ModalLabel htmlFor="cohorte">Cohorte:</ModalLabel>
@@ -293,7 +303,8 @@ const BuscarCarrera = () => {
               name="cohorte"
               value={filaSeleccionada.cohorte}
               onChange={(e) => {
-                if (e.target.value > 0 && e.target.value.trim() !== "") manejarCambio(e);
+                if (e.target.value > 0 && e.target.value.trim() !== "") 
+                  manejarCambio(e);
               }}
               placeholder="Ej: 2025"
               required
@@ -304,7 +315,8 @@ const BuscarCarrera = () => {
               name="duracion"
               value={filaSeleccionada.duracion}
               onChange={(e) => {
-                if (e.target.value > 0 && e.target.value.trim() !== "") manejarCambio(e);
+                if (e.target.value > 0 && e.target.value.trim() !== "") 
+                  manejarCambio(e);
               }}
             />
             <ModalLabel htmlFor="carga_horaria">Carga Horaria:</ModalLabel>
@@ -313,7 +325,8 @@ const BuscarCarrera = () => {
               name="carga_horaria"
               value={filaSeleccionada.carga_horaria}
               onChange={(e) => {
-                if (e.target.value > 0 && e.target.value.trim() !== "") manejarCambio(e);
+                if (e.target.value > 0 && e.target.value.trim() !== "") 
+                  manejarCambio(e);
               }}
             />
             <ModalButtons>
