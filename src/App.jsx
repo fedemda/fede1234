@@ -40,7 +40,6 @@ function App() {
     setUserName(name);
     setIsLoggedIn(true);
   };
-  
 
   const handleLogout = () => {
     console.log("🚪 Cerrando sesión...");
@@ -79,7 +78,15 @@ function App() {
                     padding: "20px",
                   }}
                 >
-                  <div style={{ width: "95%", maxWidth: "1800px", textAlign: "center", position: "relative", top: "-28px" }}>
+                  <div
+                    style={{
+                      width: "95%",
+                      maxWidth: "1800px",
+                      textAlign: "center",
+                      position: "relative",
+                      top: "-28px",
+                    }}
+                  >
                     <h1 style={{ fontSize: "3rem", fontWeight: "bold", marginTop: "0" }}>
                       Sistema de Gestión Institucional
                     </h1>
