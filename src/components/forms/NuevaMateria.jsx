@@ -10,10 +10,10 @@ const API_URL =
 
 const NuevaMateria = () => {
   const [nombre, setNombre] = useState("");
-  const [carrera, setCarrera] = useState(""); 
+  const [carrera, setCarrera] = useState("");
   const [carreras, setCarreras] = useState([]);
-  const [anio, setAnio] = useState(""); 
-  const [opcionesAnio, setOpcionesAnio] = useState([]); 
+  const [anio, setAnio] = useState("");
+  const [opcionesAnio, setOpcionesAnio] = useState([]);
 
   // Mapeo para mostrar "1º", "2º", etc.
   const anioMap = {
@@ -29,6 +29,7 @@ const NuevaMateria = () => {
     const fetchCarreras = async () => {
       try {
         const token = localStorage.getItem("token");
+        console.log("Token obtenido:", token);
         const response = await fetch(`${API_URL}/carreras`, {
           method: "GET",
           headers: {
@@ -38,14 +39,13 @@ const NuevaMateria = () => {
         });
         if (response.ok) {
           let data = await response.json();
-
-          data.sort((a, b) => {
-            return a.subcategoria.localeCompare(b.subcategoria); 
-          });
-
+          console.log("Carreras obtenidas:", data);
+          data.sort((a, b) => a.subcategoria.localeCompare(b.subcategoria));
           setCarreras(data);
         } else {
-          console.error("Error al obtener las carreras");
+          console.error("Error al obtener las carreras. Status:", response.status);
+          const errorText = await response.text();
+          console.error("Respuesta del servidor:", errorText);
         }
       } catch (error) {
         console.error("Error en la solicitud:", error);
@@ -59,7 +59,7 @@ const NuevaMateria = () => {
     const selectedCarrera = e.target.value;
     setCarrera(selectedCarrera);
     setAnio(""); // Resetear el año al cambiar la carrera
-  
+
     // Convertir a minúsculas para evitar problemas de comparación
     if (selectedCarrera.toLowerCase().includes("tec.")) {
       setOpcionesAnio(["1", "2", "3"]);
@@ -69,7 +69,7 @@ const NuevaMateria = () => {
       setOpcionesAnio([]); // Si no se encuentra coincidencia, no mostrar opciones
     }
   };
-  
+
   const handleNombreChange = (e) => {
     const value = e.target.value;
     if (/^[^0-9]*$/.test(value)) {
@@ -86,7 +86,7 @@ const NuevaMateria = () => {
       });
       return;
     }
-  
+
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/materias`, {
@@ -97,7 +97,7 @@ const NuevaMateria = () => {
         },
         body: JSON.stringify({ carrera, nombre_materia: nombre, anio }),
       });
-  
+
       if (response.ok) {
         Swal.fire({
           icon: "success",
@@ -112,6 +112,7 @@ const NuevaMateria = () => {
           title: "Error",
           text: "Error al guardar la materia.",
         });
+        console.error("Error al guardar, status:", response.status);
       }
     } catch (error) {
       console.error("Error al guardar la materia:", error);
@@ -121,7 +122,7 @@ const NuevaMateria = () => {
         text: "Error al conectar con el servidor.",
       });
     }
-  }; 
+  };
 
   return (
     <div className="nueva-materia-container">
@@ -150,13 +151,13 @@ const NuevaMateria = () => {
             value={anio}
             onChange={(e) => setAnio(e.target.value)}
             className="select-reducido"
-            disabled={!carrera}  // Deshabilita si carrera no está seleccionada
+            disabled={!carrera} // Deshabilita si carrera no está seleccionada
           >
             <option value="">Seleccione un año</option>
             {opcionesAnio.length > 0 ? (
               opcionesAnio.map((opcion, index) => (
                 <option key={index} value={opcion}>
-                  {anioMap[opcion]} {/* Aquí aplicamos el mapeo */}
+                  {anioMap[opcion]} {/* Mapeo para mostrar "1º", "2º", etc. */}
                 </option>
               ))
             ) : (
