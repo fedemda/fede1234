@@ -29,11 +29,18 @@ function App() {
 
   const handleLogin = (name, token) => {
     console.log("✅ Iniciando sesión con usuario:", name);
+    console.log("📩 Token recibido:", token);
+    
     sessionStorage.setItem("token", token);
     sessionStorage.setItem("userName", name);
+    
+    console.log("🔍 Token en sessionStorage después de guardar:", sessionStorage.getItem("token"));
+    console.log("👤 Usuario en sessionStorage después de guardar:", sessionStorage.getItem("userName"));
+  
     setUserName(name);
     setIsLoggedIn(true);
   };
+  
 
   const handleLogout = () => {
     console.log("🚪 Cerrando sesión...");
