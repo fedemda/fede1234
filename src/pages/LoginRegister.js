@@ -42,23 +42,32 @@ function LoginRegister({ onLogin }) {
           email: formData.email,
           password: formData.password,
         });
-
+      
         console.log("🔑 Token recibido del backend:", response.data.token);
-
+      
         if (!response.data.token) {
           throw new Error("Token inválido o no recibido");
         }
-
+      
         // Guardar el token en localStorage y sessionStorage
         localStorage.setItem("token", response.data.token);
         sessionStorage.setItem("token", response.data.token);
         sessionStorage.setItem("userName", response.data.name);
-
+      
         // Llamar al callback onLogin para actualizar el estado en App
         onLogin(response.data.name, response.data.token);
-
+      
+        // Mostrar alert de éxito y luego redirigir al dashboard
+        await MySwal.fire({
+          title: "Éxito",
+          text: "Inicio de sesión exitoso",
+          icon: "success",
+        });
+      
         // Redirigir al dashboard usando navigate
         navigate("/dashboard");
+      
+      
       } else {
         const response = await axios.post(`${API_URL}/register`, {
           name: formData.name,
