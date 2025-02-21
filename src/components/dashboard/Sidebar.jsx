@@ -12,7 +12,7 @@ import Calificaciones from "../forms/Calificaciones";
 // ✅ URL del backend según el entorno (local o producción)
 const API_URL =
   process.env.NODE_ENV === "production"
-    ? "https://tu-backend-en-render.com" // Cambia esto por la URL real de Render
+  ? "https://fede456.onrender.com" // 🔍 Aquí debe estar la URL real del backend
     : "http://localhost:5000";
 
 const Sidebar = () => {
