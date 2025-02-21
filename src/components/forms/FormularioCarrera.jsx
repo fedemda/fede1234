@@ -43,67 +43,62 @@ const FormularioCarrera = ({ onClose = () => {} }) => {
   // Manejar envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
     console.log("📩 Enviando solicitud para agregar carrera...");
-    console.log("🔑 Token en localStorage:", localStorage.getItem("token"));
-  
+
     const token = localStorage.getItem("token");
+
     if (!token) {
-      console.error("❌ Token no encontrado en localStorage.");
-      MySwal.fire({
-        title: "Error",
-        text: "Sesión expirada. Inicia sesión nuevamente.",
-        icon: "error",
-      });
-      return;
-    }
-  
-    try {
-      const response = await fetch("https://fede456.onrender.com/carreras", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          resolucion,
-          cohorte,
-          duracion,
-          horas,
-          categoria: categoria === "tecnicaturas" ? "Tecnicatura" : "Profesorado",
-          subcategoria,
-        }),
-      });
-  
-      console.log("📩 Respuesta del servidor:", response);
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("❌ Error en la solicitud:", errorData);
+        console.error("❌ Token no encontrado en localStorage.");
         MySwal.fire({
-          title: "Error",
-          text: errorData.message || "Ocurrió un error al guardar.",
-          icon: "error",
+            title: "Error",
+            text: "No tienes sesión iniciada. Por favor, inicia sesión nuevamente.",
+            icon: "error",
         });
         return;
-      }
-  
-      MySwal.fire({
-        title: "Éxito",
-        text: "Carrera guardada correctamente.",
-        icon: "success",
-      });
-      resetForm();
-    } catch (error) {
-      console.error("❌ Error en la conexión:", error);
-      MySwal.fire({
-        title: "Error",
-        text: "Error al conectar con el servidor.",
-        icon: "error",
-      });
     }
-  };
-  
+
+    try {
+        const response = await fetch("http://localhost:5000/carreras", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                resolucion,
+                cohorte,
+                duracion,
+                horas,
+                categoria: categoria === "tecnicaturas" ? "Tecnicatura" : "Profesorado",
+                subcategoria,
+            }),
+        });
+
+        if (response.ok) {
+            MySwal.fire({
+                title: "Éxito",
+                text: "Carrera guardada correctamente.",
+                icon: "success",
+            });
+            resetForm();
+        } else {
+            const data = await response.json();
+            MySwal.fire({
+                title: "Error",
+                text: data.message || "Ocurrió un error al guardar.",
+                icon: "error",
+            });
+        }
+    } catch (error) {
+        console.error("❌ Error en la solicitud:", error);
+        MySwal.fire({
+            title: "Error",
+            text: "Error al conectar con el servidor.",
+            icon: "error",
+        });
+    }
+};
+
 
   return (
     <div className="formulario-carrera-container">

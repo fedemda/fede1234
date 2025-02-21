@@ -31,57 +31,55 @@ function LoginRegister({ onLogin }) {
   };
 
   // Manejar envío del formulario
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  try {
-    if (showLogin) {
-      const response = await axios.post(`${API_URL}/login`, {
-        email: formData.email,
-        password: formData.password,
-      });
-
-      console.log("🔑 Token recibido del backend:", response.data.token);
-
-      if (!response.data.token) {
-        throw new Error("Token inválido o no recibido");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (showLogin) {
+        const response = await axios.post(`${API_URL}/login`, {
+          email: formData.email,
+          password: formData.password,
+        });
+  
+        console.log("🔑 Token recibido del backend:", response.data.token);
+  
+        if (!response.data.token) {
+          throw new Error("Token inválido o no recibido");
+        }
+  
+        // Guardar el token en localStorage y sessionStorage
+        localStorage.setItem("token", response.data.token);
+        sessionStorage.setItem("token", response.data.token);
+        sessionStorage.setItem("userName", response.data.name);
+  
+        // Redirigir al dashboard después del login
+        window.location.href = "/dashboard";
+  
+      } else {
+        const response = await axios.post(`${API_URL}/register`, {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        });
+  
+        MySwal.fire({
+          title: "Éxito",
+          text: response.data.message,
+          icon: "success",
+        });
+  
+        setFormData({ name: "", email: "", password: "" });
+        setShowLogin(true);
       }
-
-      sessionStorage.setItem("token", response.data.token);
-      sessionStorage.setItem("userName", response.data.name);
-
-      onLogin(response.data.name, response.data.token);
-
+    } catch (error) {
+      console.error("⚠️ Error en autenticación:", error);
       MySwal.fire({
-        title: "Éxito",
-        text: response.data.message,
-        icon: "success",
+        title: "Error",
+        text: error.response?.data?.message || "Error en la solicitud. Por favor, intenta de nuevo.",
+        icon: "error",
       });
-
-    } else {
-      const response = await axios.post(`${API_URL}/register`, {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-      });
-
-      MySwal.fire({
-        title: "Éxito",
-        text: response.data.message,
-        icon: "success",
-      });
-
-      setFormData({ name: "", email: "", password: "" });
-      setShowLogin(true);
     }
-  } catch (error) {
-    console.error("⚠️ Error en autenticación:", error);
-    MySwal.fire({
-      title: "Error",
-      text: error.response?.data?.message || "Error en la solicitud. Por favor, intenta de nuevo.",
-      icon: "error",
-    });
-  }
-};
+  };
+  
 
 
   return (
