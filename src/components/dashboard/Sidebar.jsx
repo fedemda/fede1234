@@ -6,12 +6,18 @@ import BuscarCarrera from "../forms/BuscarCarrera";
 import NuevaMateria from "../forms/NuevaMateria";
 import BuscarMateria from "../forms/BuscarMateria";
 import NuevoEstudiante from "../forms/NuevoEstudiante";
-import BuscarEstudiante from "../forms/BuscarEstudiante"; // Nuevo componente
-import Calificaciones from "../forms/Calificaciones"; // Nuevo componente
+import BuscarEstudiante from "../forms/BuscarEstudiante";
+import Calificaciones from "../forms/Calificaciones";
+
+// ✅ URL del backend según el entorno (local o producción)
+const API_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://tu-backend-en-render.com" // Cambia esto por la URL real de Render
+    : "http://localhost:5000";
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [userName, setUserName] = useState("");
+  const [userName, setUserName] = useState("Cargando...");
   const [userRole, setUserRole] = useState(null);
   const [activeMenu, setActiveMenu] = useState(null);
   const [activeSubMenu, setActiveSubMenu] = useState(null);
@@ -29,7 +35,7 @@ const Sidebar = () => {
     setActiveMenu(activeMenu === menu ? null : menu);
   };
 
-  // Manejo de autenticación (token y usuario)
+  // ✅ Obtener información del usuario autenticado
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
@@ -42,27 +48,32 @@ const Sidebar = () => {
         }
 
         const response = await axios.post(
-          "http://localhost:5000/getUserInfo",
+          `${API_URL}/getUserInfo`, // Usa la URL correcta según el entorno
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        const formattedName =
-          response.data.name.charAt(0).toUpperCase() +
-          response.data.name.slice(1).toLowerCase();
+        if (response.data.name) {
+          const formattedName =
+            response.data.name.charAt(0).toUpperCase() +
+            response.data.name.slice(1).toLowerCase();
+          setUserName(formattedName);
+        } else {
+          setUserName("Usuario desconocido");
+        }
 
-        setUserName(formattedName);
         setUserRole(response.data.rol_id);
         sessionStorage.setItem("userRole", response.data.rol_id);
-
       } catch (error) {
         console.error("❌ Error al obtener usuario:", error.response?.data || error);
+        setUserName("Error al cargar usuario");
       }
     };
-    
+
     fetchUserInfo();
   }, []);
 
+  // ✅ Cerrar sesión
   const handleLogout = () => {
     console.log("🚪 Cerrando sesión...");
     sessionStorage.clear();
@@ -78,7 +89,7 @@ const Sidebar = () => {
               {isOpen ? "close" : "menu"}
             </span>
           </button>
-          <span className="admin-text">{userName || "Cargando..."}</span>
+          <span className="admin-text">{userName}</span>
         </div>
 
         <div className="sidebar-menu">
@@ -129,9 +140,6 @@ const Sidebar = () => {
               </div>
               <div className="submenu-item" onClick={() => setActiveSubMenu("buscarEstudiante")}>
                 <span className="material-symbols-outlined">search</span> Buscar Estudiante
-              </div>
-              <div className="submenu-item" onClick={() => setActiveSubMenu("matricularEstudiante")}>
-                <span className="material-symbols-outlined">note_add</span> Matricular
               </div>
               <div className="submenu-item" onClick={() => setActiveSubMenu("calificacionesEstudiante")}>
                 <span className="material-symbols-outlined">check_circle</span> Calificaciones
