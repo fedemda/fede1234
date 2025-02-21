@@ -1,14 +1,21 @@
 import React from "react";
 import axios from "axios";
 
+// Definir la URL del backend según el entorno
+const API_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://fede456.onrender.com"
+    : "http://localhost:5000";
+
 const AnaliticoButton = ({ dni, apNombre, carrera, resolucion }) => {
   const handleDescargarAnalitico = async () => {
     try {
+      // Seleccionar la plantilla según la carrera
       const plantilla = carrera && carrera.toLowerCase().includes("prof")
         ? "Analitico_Profesorado.xlsx"  // Para Profesorado
         : "Analitico_Tecnicatura.xlsx"; // Para Tecnicatura
 
-      const response = await axios.get("http://localhost:5000/generar-analitico", {
+      const response = await axios.get(`${API_URL}/generar-analitico`, {
         params: { dni, apNombre, archivo: plantilla, resolucion, carrera },
         responseType: "blob", // Para manejar la respuesta como archivo
       });
