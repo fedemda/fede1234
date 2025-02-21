@@ -58,21 +58,22 @@ const FormularioCarrera = ({ onClose = () => {} }) => {
     }
 
     try {
-        const response = await fetch("http://localhost:5000/carreras", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-                resolucion,
-                cohorte,
-                duracion,
-                horas,
-                categoria: categoria === "tecnicaturas" ? "Tecnicatura" : "Profesorado",
-                subcategoria,
-            }),
-        });
+      const response = await fetch(`${API_URL}/carreras`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          resolucion,
+          cohorte,
+          duracion,
+          horas,
+          categoria: categoria === "tecnicaturas" ? "Tecnicatura" : "Profesorado",
+          subcategoria,
+        }),
+      });
+      
 
         if (response.ok) {
             MySwal.fire({
