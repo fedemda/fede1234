@@ -3,6 +3,12 @@ import "./NuevoEstudiante.css"; // Estilos para el formulario
 import axios from "axios";
 import Swal from "sweetalert2"; // Importar SweetAlert
 
+// Definir la URL del backend según el entorno
+const API_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://fede456.onrender.com"
+    : "http://localhost:5000";
+
 const NuevoEstudiante = () => {
   const [carreras, setCarreras] = useState([]); // Estado para almacenar las carreras
   const [selectedCarrera, setSelectedCarrera] = useState("");
@@ -16,22 +22,28 @@ const NuevoEstudiante = () => {
   useEffect(() => {
     const fetchCarreras = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/carreras", {
+        const response = await axios.get(`${API_URL}/carreras`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
 
         // Separar y ordenar las carreras
-        const tecnicas = response.data.filter(c => c.subcategoria.includes('Tec.')).sort((a, b) => {
-          const numA = parseInt(a.subcategoria.match(/\d+/));
-          const numB = parseInt(b.subcategoria.match(/\d+/));
-          return numA - numB;
-        });
+        const tecnicas = response.data
+          .filter((c) => c.subcategoria.includes("Tec."))
+          .sort((a, b) => {
+            const numA = parseInt(a.subcategoria.match(/\d+/));
+            const numB = parseInt(b.subcategoria.match(/\d+/));
+            return numA - numB;
+          });
 
-        const otras = response.data.filter(c => !c.subcategoria.includes('Tec.')).sort((a, b) => 
-          a.subcategoria.localeCompare(b.subcategoria, "es", { sensitivity: "base" })
-        );
+        const otras = response.data
+          .filter((c) => !c.subcategoria.includes("Tec."))
+          .sort((a, b) =>
+            a.subcategoria.localeCompare(b.subcategoria, "es", {
+              sensitivity: "base",
+            })
+          );
 
         setCarreras([...tecnicas, ...otras]); // Guardar las carreras ordenadas en el estado
       } catch (error) {
@@ -105,7 +117,7 @@ const NuevoEstudiante = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/estudiantes",
+        `${API_URL}/estudiantes`,
         nuevoEstudiante,
         {
           headers: {
@@ -146,7 +158,7 @@ const NuevoEstudiante = () => {
           text: "Ocurrió un error al guardar el estudiante.",
         });
       }
-    }    
+    }
   };
 
   const handleDniInput = (e) => {
