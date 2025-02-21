@@ -14,6 +14,12 @@ import "./BuscarMateria.css";
 
 const MySwal = withReactContent(Swal);
 
+// Definir la URL del backend según el entorno
+const API_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://fede456.onrender.com"
+    : "http://localhost:5000";
+
 const BuscarMateria = () => {
   const [busqueda, setBusqueda] = useState("");
   const [resultados, setResultados] = useState([]);
@@ -28,15 +34,18 @@ const BuscarMateria = () => {
       if (busqueda.trim() !== "") {
         try {
           const response = await fetch(
-            `http://localhost:5000/materias?busqueda=${busqueda}`,
+            `${API_URL}/materias?busqueda=${busqueda}`,
             {
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("token")}`,
               },
             }
           );
+          if (!response.ok) {
+            console.error("Error al buscar materias. Status:", response.status);
+            return;
+          }
           const data = await response.json();
-
           // Ordena primero por año (extraído de carrera) y luego por nombre de materia
           const resultadosOrdenados = data.sort((a, b) => {
             const añoA = parseInt(a.carrera.match(/\d+/)) || 0;
@@ -46,7 +55,6 @@ const BuscarMateria = () => {
             }
             return añoA - añoB;
           });
-
           setResultados(resultadosOrdenados);
         } catch (error) {
           console.error("Error al buscar datos:", error);
@@ -102,7 +110,7 @@ const BuscarMateria = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/materias/${filaSeleccionada.id}`,
+        `${API_URL}/materias/${filaSeleccionada.id}`,
         {
           method: "PUT",
           headers: {
@@ -167,7 +175,7 @@ const BuscarMateria = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const response = await fetch(`http://localhost:5000/materias/${id}`, {
+          const response = await fetch(`${API_URL}/materias/${id}`, {
             method: "DELETE",
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
