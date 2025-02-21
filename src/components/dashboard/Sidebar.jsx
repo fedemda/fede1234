@@ -9,11 +9,8 @@ import NuevoEstudiante from "../forms/NuevoEstudiante";
 import BuscarEstudiante from "../forms/BuscarEstudiante";
 import Calificaciones from "../forms/Calificaciones";
 
-// ✅ URL del backend según el entorno (local o producción)
-const API_URL =
-  process.env.NODE_ENV === "production"
-  ? "https://fede456.onrender.com" // 🔍 Aquí debe estar la URL real del backend
-    : "http://localhost:5000";
+// ✅ Definir la URL del backend correctamente
+const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -43,12 +40,15 @@ const Sidebar = () => {
         const token = sessionStorage.getItem("token");
 
         if (!token) {
-          console.warn("⚠️ No hay token, redirigiendo...");
+          console.warn("⚠️ No hay token en sessionStorage.");
+          setUserName("No autenticado");
           return;
         }
 
+        console.log("📩 Token encontrado en sessionStorage:", token);
+
         const response = await axios.post(
-          `${API_URL}/getUserInfo`, // Usa la URL correcta según el entorno
+          `${API_URL}/getUserInfo`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -93,6 +93,7 @@ const Sidebar = () => {
         </div>
 
         <div className="sidebar-menu">
+          {/* Carreras */}
           <div className="menu-item" onClick={() => toggleMenu("carreras")}>
             <span className="material-symbols-outlined">edit</span>
             <span>Carreras</span>
